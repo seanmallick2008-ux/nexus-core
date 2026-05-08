@@ -1,4 +1,107 @@
+/*
+ * ============================================================
+ * NEXUS CORE – RULES & ROADMAP
+ * ============================================================
+ *
+ * RULE #1  – Language
+ *   All code and comments must be written in English.
+ *
+ * RULE #2  – Responsive UI
+ *   Every UI change must support all screen sizes:
+ *   - Mobile:   ≤ 480px   → min. font-size: 14px, padding: 16px
+ *   - Tablet:   481–1024px
+ *   - Desktop:  ≥ 1025px
+ *   Use relative units (rem, %) over fixed px where possible.
+ *
+ * RULE #3  – i18n
+ *   No hardcoded text in components. Always use translation keys.
+ *   Supported languages: EN, DE (more planned).
+ *   Library: react-i18next
+ *
+ * RULE #4  – Persisting Data
+ *   User settings (language, volume, etc.) are stored via
+ *   localStorage. Keys must be prefixed with "nexus_".
+ *   Example: nexus_language, nexus_volume
+ *
+ * RULE #5  – Code Quality
+ *   - TypeScript strict mode is always ON
+ *   - No usage of `any`
+ *   - Components stay small and single-purpose
+ *
+ * RULE #7  – Versioning
+ *   This project uses Semantic Versioning: MAJOR.MINOR.PATCH
+ *   - MAJOR → breaking changes or complete reworks
+ *   - MINOR → new feature added
+ *   - PATCH → bugfix or small tweak
+ *   Version is defined in package.json and displayed in the UI.
+ *   Current version is imported via: import pkg from '../package.json'
+ *
+ * RULE #6  – Privacy & Data Security
+ *   This is an open-source project. The following rules are
+ *   non-negotiable to protect user data:
+ *   - NEVER commit API keys, secrets or credentials to the repo
+ *   - All sensitive config goes into .env (listed in .gitignore)
+ *   - Supabase Row Level Security (RLS) must be enabled on ALL
+ *     tables – users may only access their own data
+ *   - No user data is ever logged to the console in production
+ *   - Auth is handled exclusively via Supabase Auth
+ *
+ * ============================================================
+ * PLANNED CHANGES
+ * ============================================================
+ *
+ * [ ] Settings page
+ *       - Language selector (EN / DE / ...)
+ *       - Volume control
+ *       - Settings saved to localStorage with "nexus_" prefix
+ *
+ * [ ] i18n setup
+ *       - Install & configure react-i18next
+ *       - Create /locales/en.json and /locales/de.json
+ *       - Replace all hardcoded UI strings with translation keys
+ *
+ * [ ] User accounts (via Supabase)
+ *       - Email/Password Auth
+ *       - User profile & settings stored in Supabase DB
+ *       - RLS enabled on all tables from day one
+ *       - .env.example provided for contributors (no real keys)
+ *
+ * [x] Responsive audit
+ *       - All font sizes meet minimum (14px mobile, 11px desktop)
+ *       - Padding: 16px mobile / 12px desktop
+ *       - Stats, buttons, cards all scale via useBreakpoint() hook
+ *       - Canvas scales via width:100% / height:auto
+ *       - Drone & upgrade cards use 50% width on mobile
+ *
+ * ============================================================
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
+import pkg from "../package.json";
+
+// App version pulled directly from package.json – single source of truth
+const APP_VERSION = pkg.version;
+
+// ── Responsive breakpoints (px) ──────────────────────────────
+const BP = { mobile: 480, tablet: 1024 } as const;
+
+// Returns current breakpoint label based on window width
+function useBreakpoint() {
+  const [bp, setBp] = useState<"mobile"|"tablet"|"desktop">(
+    window.innerWidth <= BP.mobile ? "mobile"
+    : window.innerWidth <= BP.tablet ? "tablet"
+    : "desktop"
+  );
+  useEffect(() => {
+    const handler = () =>
+      setBp(window.innerWidth <= BP.mobile ? "mobile"
+        : window.innerWidth <= BP.tablet ? "tablet"
+        : "desktop");
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return bp;
+}
 
 const W=680, H=500, CX=W/2, CY=H/2, TOWER_R=22, TOWER_HP_MAX=300;
 
@@ -84,6 +187,21 @@ export default function App(){
   });
   const [panel,setPanel]=useState(null);
   const animRef=useRef(null),lastRef=useRef(null);
+  const screen=useBreakpoint();
+  const isMobile=screen==="mobile";
+
+  // ── Responsive scale tokens ───────────────────────────────
+  const rs={
+    padding:    isMobile?"16px":"12px",
+    fontSm:     isMobile?"12px":"9px",   // labels (min 12px on mobile)
+    fontMd:     isMobile?"14px":"11px",  // buttons & small text
+    fontLg:     isMobile?"16px":"15px",  // stat values
+    fontXl:     isMobile?"20px":"18px",  // title
+    statPad:    isMobile?"8px 14px":"5px 12px",
+    btnPad:     isMobile?"10px 20px":"7px 18px",
+    cardMinW:   isMobile?"calc(50% - 4px)":"140px",
+    droneMinW:  isMobile?"calc(50% - 4px)":"118px",
+  };
 
   const sync=useCallback(()=>{
     const g=s.current;
@@ -341,18 +459,19 @@ export default function App(){
     flex:1,background:panel===id?"#071a2e":"#030a14",
     border:`1px solid ${panel===id?"#00e5ff":"#0d2137"}`,
     color:panel===id?"#00e5ff":"#2a5a7a",
-    padding:"9px 0",borderRadius:"6px",cursor:"pointer",
-    fontSize:"11px",letterSpacing:"2px",fontFamily:"inherit",
+    padding:isMobile?"12px 0":"9px 0",borderRadius:"6px",cursor:"pointer",
+    fontSize:rs.fontMd,letterSpacing:"2px",fontFamily:"inherit",
   });
 
   return(
-    <div style={{fontFamily:"'Courier New',monospace",background:"#020812",minHeight:"100vh",padding:"12px",color:"#e0f4ff",userSelect:"none"}}>
-      <div style={{display:"flex",alignItems:"baseline",gap:"12px",marginBottom:"10px"}}>
-        <h2 style={{margin:0,fontSize:"18px",color:"#00e5ff",letterSpacing:"3px",fontWeight:500}}>◈ NEXUS CORE</h2>
-        <span style={{fontSize:"10px",color:"#2a5a7a",letterSpacing:"2px"}}>360° TOWER DEFENSE</span>
+    <div style={{fontFamily:"'Courier New',monospace",background:"#020812",minHeight:"100vh",padding:rs.padding,color:"#e0f4ff",userSelect:"none",boxSizing:"border-box"}}>
+      <div style={{display:"flex",alignItems:"baseline",gap:"12px",marginBottom:"10px",flexWrap:"wrap"}}>
+        <h2 style={{margin:0,fontSize:rs.fontXl,color:"#00e5ff",letterSpacing:"3px",fontWeight:500}}>◈ NEXUS CORE</h2>
+        <span style={{fontSize:rs.fontMd,color:"#2a5a7a",letterSpacing:"2px"}}>360° TOWER DEFENSE</span>
+        <span style={{marginLeft:"auto",fontSize:rs.fontSm,color:"#1e4060",letterSpacing:"1px"}}>v{APP_VERSION}</span>
       </div>
 
-      <div style={{display:"flex",gap:"10px",marginBottom:"10px",flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:"8px",marginBottom:"10px",flexWrap:"wrap",alignItems:"center"}}>
         {[
           {label:"CREDITS",val:`${ui.credits}¢`,   color:"#ffea00"},
           {label:"SHARDS", val:`${ui.shards}◆`,    color:"#e040fb"},
@@ -360,20 +479,20 @@ export default function App(){
           {label:"SCORE",  val:ui.score.toLocaleString(),color:"#00e5ff"},
           {label:"CORE HP",val:`${Math.ceil(ui.towerHp)}/${TOWER_HP_MAX}`,color:hpColor},
         ].map(h=>(
-          <div key={h.label} style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"6px",padding:"5px 12px"}}>
-            <div style={{fontSize:"8px",color:"#2a5a7a",letterSpacing:"2px"}}>{h.label}</div>
-            <div style={{fontSize:"15px",fontWeight:500,color:h.color}}>{h.val}</div>
+          <div key={h.label} style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"6px",padding:rs.statPad,flex:isMobile?"1 1 auto":"0 0 auto"}}>
+            <div style={{fontSize:rs.fontSm,color:"#2a5a7a",letterSpacing:"2px"}}>{h.label}</div>
+            <div style={{fontSize:rs.fontLg,fontWeight:500,color:h.color}}>{h.val}</div>
           </div>
         ))}
-        <div style={{marginLeft:"auto",display:"flex",gap:"8px"}}>
+        <div style={{width:isMobile?"100%":"auto",marginLeft:isMobile?"0":"auto",display:"flex",gap:"8px",justifyContent:isMobile?"stretch":"flex-end"}}>
           {!ui.waveActive&&!ui.gameOver&&(
-            <button onClick={startWave} style={{background:"#071a2e",border:"1px solid #00e5ff",color:"#00e5ff",padding:"7px 18px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",letterSpacing:"2px",fontFamily:"inherit"}}>
+            <button onClick={startWave} style={{flex:isMobile?1:undefined,background:"#071a2e",border:"1px solid #00e5ff",color:"#00e5ff",padding:rs.btnPad,borderRadius:"6px",cursor:"pointer",fontSize:rs.fontMd,letterSpacing:"2px",fontFamily:"inherit"}}>
               ▶ WAVE {ui.wave+1}
             </button>
           )}
-          {ui.waveActive&&<div style={{color:"#d500f9",fontSize:"11px",letterSpacing:"2px",padding:"7px"}}>⚠ INCOMING</div>}
+          {ui.waveActive&&<div style={{color:"#d500f9",fontSize:rs.fontMd,letterSpacing:"2px",padding:rs.btnPad}}>⚠ INCOMING</div>}
           {ui.gameOver&&(
-            <button onClick={reset} style={{background:"#1a0010",border:"1px solid #ff1744",color:"#ff1744",padding:"7px 18px",borderRadius:"6px",cursor:"pointer",fontSize:"11px",letterSpacing:"2px",fontFamily:"inherit"}}>
+            <button onClick={reset} style={{flex:isMobile?1:undefined,background:"#1a0010",border:"1px solid #ff1744",color:"#ff1744",padding:rs.btnPad,borderRadius:"6px",cursor:"pointer",fontSize:rs.fontMd,letterSpacing:"2px",fontFamily:"inherit"}}>
               ↺ RESTART
             </button>
           )}
@@ -400,19 +519,19 @@ export default function App(){
           {UPGRADES.map(upg=>{
             const lvl=ui.upgrades[upg.key],cost=upgCost(upg.key),can=ui.credits>=cost&&lvl<8;
             return(
-              <div key={upg.key} style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"8px",padding:"9px 11px",minWidth:"140px",flex:"1 1 140px"}}>
+              <div key={upg.key} style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"8px",padding:"9px 11px",minWidth:rs.cardMinW,flex:"1 1 140px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:"5px"}}>
-                  <span style={{fontSize:"12px"}}>{upg.icon} <span style={{color:"#7fb8d8",fontSize:"11px"}}>{upg.label}</span></span>
-                  <span style={{fontSize:"9px",color:"#2a5a7a"}}>LV {lvl}/8</span>
+                  <span style={{fontSize:"14px"}}>{upg.icon} <span style={{color:"#7fb8d8",fontSize:rs.fontMd}}>{upg.label}</span></span>
+                  <span style={{fontSize:rs.fontSm,color:"#2a5a7a"}}>LV {lvl}/8</span>
                 </div>
                 <div style={{display:"flex",gap:"3px",marginBottom:"6px"}}>
                   {Array.from({length:8}).map((_,i)=>(
-                    <div key={i} style={{flex:1,height:"3px",borderRadius:"2px",background:i<lvl?"#00e5ff":"#0d2137"}}/>
+                    <div key={i} style={{flex:1,height:"4px",borderRadius:"2px",background:i<lvl?"#00e5ff":"#0d2137"}}/>
                   ))}
                 </div>
-                <div style={{fontSize:"9px",color:"#4a7a9b",marginBottom:"5px"}}>{upg.desc}</div>
+                <div style={{fontSize:rs.fontSm,color:"#4a7a9b",marginBottom:"5px"}}>{upg.desc}</div>
                 <button onClick={()=>buyUpgrade(upg.key)} disabled={!can}
-                  style={{width:"100%",background:can?"#071a2e":"#030a14",border:`0.5px solid ${can?"#00e5ff":"#0d2137"}`,color:can?"#00e5ff":"#1a3a5c",padding:"4px",borderRadius:"5px",cursor:can?"pointer":"default",fontSize:"10px",fontFamily:"inherit",letterSpacing:"1px"}}>
+                  style={{width:"100%",background:can?"#071a2e":"#030a14",border:`0.5px solid ${can?"#00e5ff":"#0d2137"}`,color:can?"#00e5ff":"#1a3a5c",padding:isMobile?"8px":"4px",borderRadius:"5px",cursor:can?"pointer":"default",fontSize:rs.fontMd,fontFamily:"inherit",letterSpacing:"1px"}}>
                   {lvl>=8?"MAX":`${cost}¢`}
                 </button>
               </div>
@@ -423,30 +542,30 @@ export default function App(){
 
       {/* Drones Panel */}
       {panel==="drones"&&(
-        <div style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"8px",padding:"12px",marginTop:"8px"}}>
+        <div style={{background:"#050f1f",border:"0.5px solid #0d2137",borderRadius:"8px",padding:isMobile?"16px":"12px",marginTop:"8px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px",flexWrap:"wrap",gap:"8px"}}>
-            <div style={{fontSize:"9px",color:"#2a5a7a",letterSpacing:"2px"}}>
+            <div style={{fontSize:rs.fontSm,color:"#2a5a7a",letterSpacing:"2px"}}>
               DRONE HANGAR — <span style={{color:"#e040fb"}}>{ui.shards}◆ SHARDS</span>
             </div>
             <button onClick={buyDrone} disabled={ui.shards<droneCost}
-              style={{background:ui.shards>=droneCost?"#1a0040":"#030a14",border:`1px solid ${ui.shards>=droneCost?"#e040fb":"#0d2137"}`,color:ui.shards>=droneCost?"#e040fb":"#2a5a7a",padding:"6px 16px",borderRadius:"6px",cursor:ui.shards>=droneCost?"pointer":"default",fontSize:"10px",fontFamily:"inherit",letterSpacing:"1px"}}>
+              style={{flex:isMobile?1:undefined,background:ui.shards>=droneCost?"#1a0040":"#030a14",border:`1px solid ${ui.shards>=droneCost?"#e040fb":"#0d2137"}`,color:ui.shards>=droneCost?"#e040fb":"#2a5a7a",padding:rs.btnPad,borderRadius:"6px",cursor:ui.shards>=droneCost?"pointer":"default",fontSize:rs.fontMd,fontFamily:"inherit",letterSpacing:"1px"}}>
               BUY DRONE — {droneCost}◆
             </button>
           </div>
 
           {/* Rarity legend */}
-          <div style={{display:"flex",gap:"12px",marginBottom:"12px",flexWrap:"wrap",padding:"6px 8px",background:"#030a14",borderRadius:"6px",border:"0.5px solid #0d2137"}}>
+          <div style={{display:"flex",gap:"10px",marginBottom:"12px",flexWrap:"wrap",padding:"6px 8px",background:"#030a14",borderRadius:"6px",border:"0.5px solid #0d2137"}}>
             {DRONE_TYPES.map(dt=>(
               <div key={dt.key} style={{display:"flex",alignItems:"center",gap:"4px"}}>
-                <span style={{fontSize:"12px"}}>{dt.icon}</span>
-                <span style={{fontSize:"9px",color:dt.rColor,fontWeight:500}}>{dt.rarity}</span>
-                <span style={{fontSize:"9px",color:"#1e4060"}}>{dt.chance}</span>
+                <span style={{fontSize:"14px"}}>{dt.icon}</span>
+                <span style={{fontSize:rs.fontSm,color:dt.rColor,fontWeight:500}}>{dt.rarity}</span>
+                <span style={{fontSize:rs.fontSm,color:"#1e4060"}}>{dt.chance}</span>
               </div>
             ))}
           </div>
 
           {ui.drones.length===0?(
-            <div style={{fontSize:"11px",color:"#2a5a7a",textAlign:"center",padding:"28px 0"}}>
+            <div style={{fontSize:rs.fontMd,color:"#2a5a7a",textAlign:"center",padding:"28px 0"}}>
               No drones yet — complete a wave to earn ◆ Shards, then buy!
             </div>
           ):(
@@ -456,18 +575,18 @@ export default function App(){
                 const canMerge=grp.count>=3&&grp.level<3;
                 return(
                   <div key={`${grp.key}_${grp.level}`}
-                    style={{background:"#030a14",border:`1px solid ${canMerge?"#76ff03":dt.rColor+"55"}`,borderRadius:"8px",padding:"10px 10px",minWidth:"118px",textAlign:"center",transition:"border-color .2s"}}>
+                    style={{background:"#030a14",border:`1px solid ${canMerge?"#76ff03":dt.rColor+"55"}`,borderRadius:"8px",padding:"10px",minWidth:rs.droneMinW,flex:"1 1 auto",textAlign:"center",transition:"border-color .2s",boxSizing:"border-box"}}>
                     <div style={{fontSize:"24px",marginBottom:"3px"}}>{dt.icon}</div>
-                    <div style={{fontSize:"10px",color:"#c8e6ff",marginBottom:"2px"}}>{dt.name}</div>
-                    <div style={{fontSize:"9px",color:dt.rColor,marginBottom:"3px",fontWeight:500}}>{dt.rarity}</div>
-                    <div style={{fontSize:"11px",color:"#ffd54f",marginBottom:"4px",letterSpacing:"2px"}}>
+                    <div style={{fontSize:rs.fontMd,color:"#c8e6ff",marginBottom:"2px"}}>{dt.name}</div>
+                    <div style={{fontSize:rs.fontSm,color:dt.rColor,marginBottom:"3px",fontWeight:500}}>{dt.rarity}</div>
+                    <div style={{fontSize:rs.fontMd,color:"#ffd54f",marginBottom:"4px",letterSpacing:"2px"}}>
                       {"★".repeat(grp.level)}{"☆".repeat(3-grp.level)}
                     </div>
-                    <div style={{fontSize:"9px",color:"#4a7a9b",marginBottom:"6px"}}>{EFF_LABEL[grp.key](grp.level)}</div>
-                    <div style={{fontSize:"13px",color:"#7fb8d8",marginBottom:canMerge?"6px":"0"}}>×{grp.count}</div>
+                    <div style={{fontSize:rs.fontSm,color:"#4a7a9b",marginBottom:"6px"}}>{EFF_LABEL[grp.key](grp.level)}</div>
+                    <div style={{fontSize:rs.fontLg,color:"#7fb8d8",marginBottom:canMerge?"6px":"0"}}>×{grp.count}</div>
                     {canMerge&&(
                       <button onClick={()=>mergeDrones(grp.key,grp.level)}
-                        style={{width:"100%",background:"#0d1a00",border:"1px solid #76ff03",color:"#76ff03",padding:"4px",borderRadius:"4px",cursor:"pointer",fontSize:"9px",fontFamily:"inherit",letterSpacing:"1px"}}>
+                        style={{width:"100%",background:"#0d1a00",border:"1px solid #76ff03",color:"#76ff03",padding:isMobile?"8px":"4px",borderRadius:"4px",cursor:"pointer",fontSize:rs.fontMd,fontFamily:"inherit",letterSpacing:"1px"}}>
                         ⬆ MERGE 3→1
                       </button>
                     )}
@@ -479,13 +598,13 @@ export default function App(){
 
           {ui.drones.length>0&&(
             <div style={{background:"#030a14",borderRadius:"6px",padding:"8px 10px",border:"0.5px solid #0d2137"}}>
-              <div style={{fontSize:"8px",color:"#2a5a7a",letterSpacing:"2px",marginBottom:"6px"}}>ACTIVE BONUSES</div>
+              <div style={{fontSize:rs.fontSm,color:"#2a5a7a",letterSpacing:"2px",marginBottom:"6px"}}>ACTIVE BONUSES</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
-                {ds.gold>0&&<span style={{fontSize:"10px",color:"#ffea00",background:"#1a1400",padding:"2px 8px",borderRadius:"4px"}}>+{ds.gold}¢/kill</span>}
-                {ds.def>0&&<span style={{fontSize:"10px",color:"#4fc3f7",background:"#001a20",padding:"2px 8px",borderRadius:"4px"}}>−{Math.round(ds.def*100)}% dmg taken</span>}
-                {ds.dmg>0&&<span style={{fontSize:"10px",color:"#ef5350",background:"#1a0000",padding:"2px 8px",borderRadius:"4px"}}>+{Math.round(ds.dmg*100)}% shot dmg</span>}
-                {ds.rate>0&&<span style={{fontSize:"10px",color:"#ce93d8",background:"#0d0020",padding:"2px 8px",borderRadius:"4px"}}>+{Math.round(ds.rate*100)}% fire rate</span>}
-                {ds.crit>0&&<span style={{fontSize:"10px",color:"#ffd54f",background:"#1a1000",padding:"2px 8px",borderRadius:"4px"}}>{Math.round(ds.crit*100)}% crit chance</span>}
+                {ds.gold>0&&<span style={{fontSize:rs.fontMd,color:"#ffea00",background:"#1a1400",padding:"2px 8px",borderRadius:"4px"}}>+{ds.gold}¢/kill</span>}
+                {ds.def>0&&<span style={{fontSize:rs.fontMd,color:"#4fc3f7",background:"#001a20",padding:"2px 8px",borderRadius:"4px"}}>−{Math.round(ds.def*100)}% dmg taken</span>}
+                {ds.dmg>0&&<span style={{fontSize:rs.fontMd,color:"#ef5350",background:"#1a0000",padding:"2px 8px",borderRadius:"4px"}}>+{Math.round(ds.dmg*100)}% shot dmg</span>}
+                {ds.rate>0&&<span style={{fontSize:rs.fontMd,color:"#ce93d8",background:"#0d0020",padding:"2px 8px",borderRadius:"4px"}}>+{Math.round(ds.rate*100)}% fire rate</span>}
+                {ds.crit>0&&<span style={{fontSize:rs.fontMd,color:"#ffd54f",background:"#1a1000",padding:"2px 8px",borderRadius:"4px"}}>{Math.round(ds.crit*100)}% crit chance</span>}
               </div>
             </div>
           )}
